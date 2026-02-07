@@ -373,6 +373,188 @@ const ReservationStayManagement = () => {
         );
     }
 
+    // ========================================
+    // DRAWER ACTION HANDLERS
+    // ========================================
+    
+    // Check-In Handler
+    const handleCheckIn = (checkInData) => {
+        if (!selectedReservation) return;
+        
+        const updatedReservation = {
+            ...selectedReservation,
+            status: 'IN_HOUSE',
+            checkInDate: checkInData.arrivalDate,
+            checkInTime: checkInData.checkInTime,
+            idProof: {
+                type: checkInData.idProofType,
+                number: checkInData.idNumber
+            },
+            vehicleNumber: checkInData.vehicleNumber,
+            securityDeposit: checkInData.securityDeposit,
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        setSelectedReservation(updatedReservation);
+        alert('✓ Guest checked in successfully!');
+    };
+
+    // Add Payment Handler
+    const handleAddPayment = (paymentData) => {
+        if (!selectedReservation) return;
+        
+        const newPaidAmount = (selectedReservation.paidAmount || 0) + paymentData.amount;
+        const newBalance = Math.max(0, (selectedReservation.totalAmount || 0) - newPaidAmount);
+
+        const updatedReservation = {
+            ...selectedReservation,
+            paidAmount: newPaidAmount,
+            balanceDue: newBalance,
+            payments: [...(selectedReservation.payments || []), paymentData],
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        setSelectedReservation(updatedReservation);
+        alert(`✓ Payment of ₹${paymentData.amount.toLocaleString('en-IN')} added successfully!\nNew Balance: ₹${newBalance.toLocaleString('en-IN')}`);
+    };
+
+    // Amend Stay Handler (New Drawer Version)
+    const handleAmendStayDrawer = (amendData) => {
+        if (!selectedReservation) return;
+
+        const updatedReservation = {
+            ...selectedReservation,
+            checkInDate: amendData.newArrivalDate,
+            checkOutDate: amendData.newDepartureDate,
+            nights: amendData.nights,
+            roomCharges: amendData.newRoomCharges,
+            tax: amendData.newTax,
+            totalAmount: amendData.newTotal,
+            balanceDue: Math.max(0, amendData.newTotal - selectedReservation.paidAmount),
+            updatedAt: new Date().toISOString()
+        };
+
+        if (amendData.rateChange) {
+            updatedReservation.rooms[0].ratePerNight = amendData.newRate;
+        }
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        setSelectedReservation(updatedReservation);
+        alert(`✓ Stay amended successfully!\nNew nights: ${amendData.nights}\nNew total: ₹${amendData.newTotal.toLocaleString('en-IN')}`);
+    };
+
+    // Room Move Handler
+    const handleRoomMove = (moveData) => {
+        if (!selectedReservation) return;
+
+        const updatedReservation = {
+            ...selectedReservation,
+            rooms: [{
+                ...selectedReservation.rooms[0],
+                roomNumber: moveData.newRoom
+            }],
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        setSelectedReservation(updatedReservation);
+        alert(`✓ Guest moved from Room ${moveData.oldRoom} to Room ${moveData.newRoom}`);
+    };
+
+    // Exchange Room Handler
+    const handleExchangeRoom = (exchangeData) => {
+        if (!selectedReservation) return;
+
+        const targetRes = reservations.find(r => r.id === exchangeData.targetReservation);
+        if (!targetRes) return;
+
+        // Swap room numbers
+        const currentRoom = selectedReservation.rooms[0].roomNumber;
+        const targetRoom = targetRes.rooms[0].roomNumber;
+
+        const updatedCurrent = {
+            ...selectedReservation,
+            rooms: [{ ...selectedReservation.rooms[0], roomNumber: targetRoom }],
+            updatedAt: new Date().toISOString()
+        };
+
+        const updatedTarget = {
+            ...targetRes,
+            rooms: [{ ...targetRes.rooms[0], roomNumber: currentRoom }],
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => 
+            r.id === selectedReservation.id ? updatedCurrent :
+            r.id === targetRes.id ? updatedTarget : r
+        ));
+        setSelectedReservation(updatedCurrent);
+        alert(`✓ Rooms exchanged successfully!\n${selectedReservation.guestName} → Room ${targetRoom}\n${targetRes.guestName} → Room ${currentRoom}`);
+    };
+
+    // Add Visitor Handler
+    const handleAddVisitor = (visitorData) => {
+        setVisitors([...visitors, { ...visitorData, id: Date.now() }]);
+        alert('✓ Visitor added successfully!');
+    };
+
+    // No-Show Handler
+    const handleNoShow = (noShowData) => {
+        if (!selectedReservation) return;
+
+        const updatedReservation = {
+            ...selectedReservation,
+            status: 'NO_SHOW',
+            noShowReason: noShowData.reason,
+            noShowCharges: noShowData.charges,
+            refundAmount: noShowData.refundAmount,
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        alert('✓ Reservation marked as No-Show');
+        setSelectedReservation(null);
+    };
+
+    // Void Handler
+    const handleVoid = (voidData) => {
+        if (!selectedReservation) return;
+
+        const updatedReservation = {
+            ...selectedReservation,
+            status: 'VOID',
+            voidReason: voidData.reason,
+            voidedAt: voidData.voidedAt,
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        alert('✓ Reservation voided successfully');
+        setSelectedReservation(null);
+    };
+
+    // Cancel Handler
+    const handleCancel = (cancelData) => {
+        if (!selectedReservation) return;
+
+        const updatedReservation = {
+            ...selectedReservation,
+            status: 'CANCELLED',
+            cancellationReason: cancelData.reason,
+            cancellationCharges: cancelData.cancellationCharges,
+            refundAmount: cancelData.refundAmount,
+            refundMode: cancelData.refundMode,
+            cancelledAt: cancelData.cancelledAt,
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        alert(`✓ Reservation cancelled\nRefund: ₹${cancelData.refundAmount.toLocaleString('en-IN')} via ${cancelData.refundMode}`);
+        setSelectedReservation(null);
+    };
+
     if (view === 'form') {
         return (
             <div className="reservation-management-container">

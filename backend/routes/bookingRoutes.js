@@ -11,7 +11,15 @@ const {
     getBookingsByDateRange,
     addTransaction,
     updateTransaction,
-    deleteTransaction
+    deleteTransaction,
+    checkInGuest,
+    addPayment,
+    amendStay,
+    roomMove,
+    exchangeRooms,
+    markNoShow,
+    voidReservation,
+    cancelReservation
 } = require('../controllers/bookingController');
 
 // Main routes
@@ -32,5 +40,17 @@ router.get('/room/:roomNumber', getBookingsByRoom);
 router.post('/:bookingId/transactions', addTransaction);
 router.put('/:bookingId/transactions/:transactionId', updateTransaction);
 router.delete('/:bookingId/transactions/:transactionId', deleteTransaction);
+
+// ========================================
+// DRAWER ACTION ROUTES
+// ========================================
+router.post('/:id/check-in', checkInGuest);
+router.post('/:id/add-payment', addPayment);
+router.post('/:id/amend-stay', amendStay);
+router.post('/:id/room-move', roomMove);
+router.post('/:id/exchange-rooms', exchangeRooms);
+router.post('/:id/no-show', markNoShow);
+router.post('/:id/void', voidReservation);
+router.post('/:id/cancel', cancelReservation);
 
 module.exports = router;
