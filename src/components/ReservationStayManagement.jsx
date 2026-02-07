@@ -10,6 +10,17 @@ import InvoiceGenerator from './InvoiceGenerator';
 import InvoiceView from './InvoiceView';
 import './InvoiceView.css';
 import EditReservationModal from './EditReservationModal';
+import {
+    CheckInDrawer,
+    AddPaymentDrawer,
+    AmendStayDrawer,
+    RoomMoveDrawer,
+    ExchangeRoomDrawer,
+    VisitorDrawer,
+    NoShowDrawer,
+    VoidDrawer,
+    CancelDrawer
+} from './ReservationDrawers';
 
 const ReservationStayManagement = () => {
     const [view, setView] = useState('dashboard'); // 'dashboard' or 'form'
@@ -138,6 +149,28 @@ const ReservationStayManagement = () => {
     // More Options Menu State
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [showAmendStayModal, setShowAmendStayModal] = useState(false);
+    
+    // Drawer States
+    const [showCheckInDrawer, setShowCheckInDrawer] = useState(false);
+    const [showAddPaymentDrawer, setShowAddPaymentDrawer] = useState(false);
+    const [showAmendStayDrawer, setShowAmendStayDrawer] = useState(false);
+    const [showRoomMoveDrawer, setShowRoomMoveDrawer] = useState(false);
+    const [showExchangeRoomDrawer, setShowExchangeRoomDrawer] = useState(false);
+    const [showVisitorDrawer, setShowVisitorDrawer] = useState(false);
+    const [showNoShowDrawer, setShowNoShowDrawer] = useState(false);
+    const [showVoidDrawer, setShowVoidDrawer] = useState(false);
+    const [showCancelDrawer, setShowCancelDrawer] = useState(false);
+    
+    // Visitor Data
+    const [visitors, setVisitors] = useState([]);
+    
+    // Available Rooms (for Room Move)
+    const [availableRooms, setAvailableRooms] = useState([
+        { number: '101', type: 'Deluxe', category: 'AC Double' },
+        { number: '102', type: 'Deluxe', category: 'AC Single' },
+        { number: '201', type: 'Suite', category: 'Executive' },
+        { number: '202', type: 'Club', category: 'AC Double' }
+    ]);
     
     // Amend Stay State
     const [amendArrivalDate, setAmendArrivalDate] = useState('');
@@ -517,6 +550,188 @@ const ReservationStayManagement = () => {
         alert(`Stay updated successfully!\nCheck-in: ${amendArrivalDate} at ${amendArrivalTime} ${amendArrivalPeriod}\nCheck-out: ${amendDepartureDate} at ${amendDepartureTime} ${amendDeparturePeriod}\nTotal nights: ${calculatedNights}`);
     };
 
+    // ========================================
+    // DRAWER ACTION HANDLERS
+    // ========================================
+    
+    // Check-In Handler
+    const handleCheckIn = (checkInData) => {
+        if (!selectedReservation) return;
+        
+        const updatedReservation = {
+            ...selectedReservation,
+            status: 'IN_HOUSE',
+            checkInDate: checkInData.arrivalDate,
+            checkInTime: checkInData.checkInTime,
+            idProof: {
+                type: checkInData.idProofType,
+                number: checkInData.idNumber
+            },
+            vehicleNumber: checkInData.vehicleNumber,
+            securityDeposit: checkInData.securityDeposit,
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        setSelectedReservation(updatedReservation);
+        alert('✓ Guest checked in successfully!');
+    };
+
+    // Add Payment Handler
+    const handleAddPayment = (paymentData) => {
+        if (!selectedReservation) return;
+        
+        const newPaidAmount = (selectedReservation.paidAmount || 0) + paymentData.amount;
+        const newBalance = Math.max(0, (selectedReservation.totalAmount || 0) - newPaidAmount);
+
+        const updatedReservation = {
+            ...selectedReservation,
+            paidAmount: newPaidAmount,
+            balanceDue: newBalance,
+            payments: [...(selectedReservation.payments || []), paymentData],
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        setSelectedReservation(updatedReservation);
+        alert(`✓ Payment of ₹${paymentData.amount.toLocaleString('en-IN')} added successfully!\nNew Balance: ₹${newBalance.toLocaleString('en-IN')}`);
+    };
+
+    // Amend Stay Handler (New Drawer Version)
+    const handleAmendStayDrawer = (amendData) => {
+        if (!selectedReservation) return;
+
+        const updatedReservation = {
+            ...selectedReservation,
+            checkInDate: amendData.newArrivalDate,
+            checkOutDate: amendData.newDepartureDate,
+            nights: amendData.nights,
+            roomCharges: amendData.newRoomCharges,
+            tax: amendData.newTax,
+            totalAmount: amendData.newTotal,
+            balanceDue: Math.max(0, amendData.newTotal - selectedReservation.paidAmount),
+            updatedAt: new Date().toISOString()
+        };
+
+        if (amendData.rateChange) {
+            updatedReservation.rooms[0].ratePerNight = amendData.newRate;
+        }
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        setSelectedReservation(updatedReservation);
+        alert(`✓ Stay amended successfully!\nNew nights: ${amendData.nights}\nNew total: ₹${amendData.newTotal.toLocaleString('en-IN')}`);
+    };
+
+    // Room Move Handler
+    const handleRoomMove = (moveData) => {
+        if (!selectedReservation) return;
+
+        const updatedReservation = {
+            ...selectedReservation,
+            rooms: [{
+                ...selectedReservation.rooms[0],
+                roomNumber: moveData.newRoom
+            }],
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        setSelectedReservation(updatedReservation);
+        alert(`✓ Guest moved from Room ${moveData.oldRoom} to Room ${moveData.newRoom}`);
+    };
+
+    // Exchange Room Handler
+    const handleExchangeRoom = (exchangeData) => {
+        if (!selectedReservation) return;
+
+        const targetRes = reservations.find(r => r.id === exchangeData.targetReservation);
+        if (!targetRes) return;
+
+        // Swap room numbers
+        const currentRoom = selectedReservation.rooms[0].roomNumber;
+        const targetRoom = targetRes.rooms[0].roomNumber;
+
+        const updatedCurrent = {
+            ...selectedReservation,
+            rooms: [{ ...selectedReservation.rooms[0], roomNumber: targetRoom }],
+            updatedAt: new Date().toISOString()
+        };
+
+        const updatedTarget = {
+            ...targetRes,
+            rooms: [{ ...targetRes.rooms[0], roomNumber: currentRoom }],
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => 
+            r.id === selectedReservation.id ? updatedCurrent :
+            r.id === targetRes.id ? updatedTarget : r
+        ));
+        setSelectedReservation(updatedCurrent);
+        alert(`✓ Rooms exchanged successfully!\n${selectedReservation.guestName} → Room ${targetRoom}\n${targetRes.guestName} → Room ${currentRoom}`);
+    };
+
+    // Add Visitor Handler
+    const handleAddVisitor = (visitorData) => {
+        setVisitors([...visitors, { ...visitorData, id: Date.now() }]);
+        alert('✓ Visitor added successfully!');
+    };
+
+    // No-Show Handler
+    const handleNoShow = (noShowData) => {
+        if (!selectedReservation) return;
+
+        const updatedReservation = {
+            ...selectedReservation,
+            status: 'NO_SHOW',
+            noShowReason: noShowData.reason,
+            noShowCharges: noShowData.charges,
+            refundAmount: noShowData.refundAmount,
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        alert('✓ Reservation marked as No-Show');
+        setSelectedReservation(null);
+    };
+
+    // Void Handler
+    const handleVoid = (voidData) => {
+        if (!selectedReservation) return;
+
+        const updatedReservation = {
+            ...selectedReservation,
+            status: 'VOID',
+            voidReason: voidData.reason,
+            voidedAt: voidData.voidedAt,
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        alert('✓ Reservation voided successfully');
+        setSelectedReservation(null);
+    };
+
+    // Cancel Handler
+    const handleCancel = (cancelData) => {
+        if (!selectedReservation) return;
+
+        const updatedReservation = {
+            ...selectedReservation,
+            status: 'CANCELLED',
+            cancellationReason: cancelData.reason,
+            cancellationCharges: cancelData.cancellationCharges,
+            refundAmount: cancelData.refundAmount,
+            refundMode: cancelData.refundMode,
+            cancelledAt: cancelData.cancelledAt,
+            updatedAt: new Date().toISOString()
+        };
+
+        setReservations(reservations.map(r => r.id === selectedReservation.id ? updatedReservation : r));
+        alert(`✓ Reservation cancelled\nRefund: ₹${cancelData.refundAmount.toLocaleString('en-IN')} via ${cancelData.refundMode}`);
+        setSelectedReservation(null);
+    };
+
     if (view === 'form') {
         return (
             <div className="reservation-management-container">
@@ -803,27 +1018,50 @@ const ReservationStayManagement = () => {
                                         </button>
                                         {showMoreOptions && (
                                             <div className="more-options-dropdown">
-                                                <button className="dropdown-item" onClick={() => setShowMoreOptions(false)}>Check-In</button>
-                                                <button className="dropdown-item" onClick={() => setShowMoreOptions(false)}>Add Payment</button>
                                                 <button className="dropdown-item" onClick={() => {
                                                     setShowMoreOptions(false);
-                                                    // AmendStay modal removed
-                                                    if (selectedReservation) {
-                                                        setAmendArrivalDate(selectedReservation.checkInDate);
-                                                        const arrivalConverted = convertTo12Hour(selectedReservation.checkInTime);
-                                                        setAmendArrivalTime(arrivalConverted.time);
-                                                        setAmendArrivalPeriod(arrivalConverted.period);
-                                                        setAmendDepartureDate(selectedReservation.checkOutDate);
-                                                        const departureConverted = convertTo12Hour(selectedReservation.checkOutTime);
-                                                        setAmendDepartureTime(departureConverted.time);
-                                                        setAmendDeparturePeriod(departureConverted.period);
-                                                    }
+                                                    setShowCheckInDrawer(true);
+                                                }}>Check-In</button>
+                                                
+                                                <button className="dropdown-item" onClick={() => {
+                                                    setShowMoreOptions(false);
+                                                    setShowAddPaymentDrawer(true);
+                                                }}>Add Payment</button>
+                                                
+                                                <button className="dropdown-item" onClick={() => {
+                                                    setShowMoreOptions(false);
+                                                    setShowAmendStayDrawer(true);
                                                 }}>Amend Stay</button>
-                                                <button className="dropdown-item" onClick={() => setShowMoreOptions(false)}>Room Move</button>
-                                                <button className="dropdown-item" onClick={() => setShowMoreOptions(false)}>Exchange Room</button>
-                                                <button className="dropdown-item" onClick={() => setShowMoreOptions(false)}>Add Show Visitor</button>
-                                                <button className="dropdown-item" onClick={() => setShowMoreOptions(false)}>Void Reservation</button>
-                                                <button className="dropdown-item dropdown-item-danger" onClick={() => setShowMoreOptions(false)}>Cancel</button>
+                                                
+                                                <button className="dropdown-item" onClick={() => {
+                                                    setShowMoreOptions(false);
+                                                    setShowRoomMoveDrawer(true);
+                                                }}>Room Move</button>
+                                                
+                                                <button className="dropdown-item" onClick={() => {
+                                                    setShowMoreOptions(false);
+                                                    setShowExchangeRoomDrawer(true);
+                                                }}>Exchange Room</button>
+                                                
+                                                <button className="dropdown-item" onClick={() => {
+                                                    setShowMoreOptions(false);
+                                                    setShowVisitorDrawer(true);
+                                                }}>Add / Show Visitor</button>
+                                                
+                                                <button className="dropdown-item" onClick={() => {
+                                                    setShowMoreOptions(false);
+                                                    setShowNoShowDrawer(true);
+                                                }}>No-Show Reservation</button>
+                                                
+                                                <button className="dropdown-item" onClick={() => {
+                                                    setShowMoreOptions(false);
+                                                    setShowVoidDrawer(true);
+                                                }}>Void Reservation</button>
+                                                
+                                                <button className="dropdown-item dropdown-item-danger" onClick={() => {
+                                                    setShowMoreOptions(false);
+                                                    setShowCancelDrawer(true);
+                                                }}>Cancel Reservation</button>
                                             </div>
                                         )}
                                     </div>
@@ -986,6 +1224,85 @@ const ReservationStayManagement = () => {
                 isOpen={showEditModal}
                 onClose={() => setShowEditModal(false)}
                 reservation={selectedReservation}
+            />
+
+            {/* ========================================
+                ALL DRAWER COMPONENTS
+                ======================================== */}
+            
+            {/* Check-In Drawer */}
+            <CheckInDrawer
+                isOpen={showCheckInDrawer}
+                onClose={() => setShowCheckInDrawer(false)}
+                reservation={selectedReservation}
+                onSubmit={handleCheckIn}
+            />
+
+            {/* Add Payment Drawer */}
+            <AddPaymentDrawer
+                isOpen={showAddPaymentDrawer}
+                onClose={() => setShowAddPaymentDrawer(false)}
+                reservation={selectedReservation}
+                onSubmit={handleAddPayment}
+            />
+
+            {/* Amend Stay Drawer */}
+            <AmendStayDrawer
+                isOpen={showAmendStayDrawer}
+                onClose={() => setShowAmendStayDrawer(false)}
+                reservation={selectedReservation}
+                onSubmit={handleAmendStayDrawer}
+            />
+
+            {/* Room Move Drawer */}
+            <RoomMoveDrawer
+                isOpen={showRoomMoveDrawer}
+                onClose={() => setShowRoomMoveDrawer(false)}
+                reservation={selectedReservation}
+                availableRooms={availableRooms}
+                onSubmit={handleRoomMove}
+            />
+
+            {/* Exchange Room Drawer */}
+            <ExchangeRoomDrawer
+                isOpen={showExchangeRoomDrawer}
+                onClose={() => setShowExchangeRoomDrawer(false)}
+                reservation={selectedReservation}
+                occupiedReservations={Array.isArray(reservations) ? reservations.filter(r => r?.status === 'IN_HOUSE') : []}
+                onSubmit={handleExchangeRoom}
+            />
+
+            {/* Visitor Drawer */}
+            <VisitorDrawer
+                isOpen={showVisitorDrawer}
+                onClose={() => setShowVisitorDrawer(false)}
+                reservation={selectedReservation}
+                visitors={Array.isArray(visitors) ? visitors.filter(v => v?.reservationId === selectedReservation?.id) : []}
+                onSubmit={handleAddVisitor}
+            />
+
+            {/* No-Show Drawer */}
+            <NoShowDrawer
+                isOpen={showNoShowDrawer}
+                onClose={() => setShowNoShowDrawer(false)}
+                reservation={selectedReservation}
+                onSubmit={handleNoShow}
+            />
+
+            {/* Void Drawer */}
+            <VoidDrawer
+                isOpen={showVoidDrawer}
+                onClose={() => setShowVoidDrawer(false)}
+                reservation={selectedReservation}
+                onSubmit={handleVoid}
+            />
+
+            {/* Cancel Reservation Drawer */}
+            <CancelDrawer
+                isOpen={showCancelDrawer}
+                onClose={() => setShowCancelDrawer(false)}
+                reservation={selectedReservation}
+                onSubmit={handleCancel}
             />
         </div>
     );

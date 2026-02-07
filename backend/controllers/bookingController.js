@@ -434,3 +434,565 @@ exports.deleteTransaction = async (req, res) => {
         });
     }
 };
+
+// ========================================
+// DRAWER ACTION ENDPOINTS
+// ========================================
+
+// Check-In Guest
+exports.checkInGuest = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        const { arrivalDate, checkInTime, idProofType, idNumber, adults, children, vehicleNumber, securityDeposit, remarks } = req.body;
+
+        // Update booking with check-in details
+        booking.status = 'Checked-in';
+        booking.checkInDate = arrivalDate || booking.checkInDate;
+        booking.actualCheckInTime = checkInTime;
+        booking.idProof = { type: idProofType, number: idNumber };
+        booking.numberOfGuests = adults + children;
+        booking.vehicleNumber = vehicleNumber;
+        booking.securityDeposit = securityDeposit || 0;
+        booking.checkInRemarks = remarks;
+        booking.updatedAt = Date.now();
+
+        // Add audit trail
+        if (!booking.auditTrail) booking.auditTrail = [];
+        booking.auditTrail.push({
+            action: 'CHECK_IN',
+            timestamp: new Date(),
+            user: 'admin',
+            details: `Guest checked in - Room ${booking.roomNumber}`
+        });
+
+        // Add security deposit transaction if applicable
+        if (securityDeposit && securityDeposit > 0) {
+            booking.transactions.push({
+                type: 'payment',
+                day: new Date().toLocaleDateString('en-GB'),
+                particulars: 'Security Deposit',
+                description: `Security deposit received: ₹${securityDeposit}`,
+                amount: -Math.abs(securityDeposit),
+                user: 'admin'
+            });
+        }
+
+        await booking.save();
+
+        // Update room status to Occupied
+        const Room = require('../models/roomModel');
+        const room = await Room.findOne({ roomNumber: booking.roomNumber });
+        if (room) {
+            room.status = 'Occupied';
+            await room.save();
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Guest checked in successfully',
+            data: booking
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error checking in guest',
+            error: error.message
+        });
+    }
+};
+
+// Add Payment
+exports.addPayment = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        const { paymentDate, paymentMethod, amount, referenceId, comment } = req.body;
+
+        // Validate amount
+        if (!amount || amount <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid payment amount'
+            });
+        }
+
+        // Add payment transaction
+        const paymentTransaction = {
+            type: 'payment',
+            day: new Date(paymentDate).toLocaleDateString('en-GB'),
+            particulars: `Payment - ${paymentMethod}`,
+            description: `${comment || 'Payment received'} ${referenceId ? `(Ref: ${referenceId})` : ''}`,
+            amount: -Math.abs(amount),
+            user: 'admin',
+            paymentMethod,
+            referenceId: referenceId || null
+        };
+
+        booking.transactions.push(paymentTransaction);
+        booking.advancePaid = (booking.advancePaid || 0) + amount;
+        booking.remainingAmount = Math.max(0, (booking.totalAmount || 0) - booking.advancePaid);
+        booking.updatedAt = Date.now();
+
+        // Add audit trail
+        if (!booking.auditTrail) booking.auditTrail = [];
+        booking.auditTrail.push({
+            action: 'PAYMENT_ADDED',
+            timestamp: new Date(),
+            user: 'admin',
+            amount: amount
+        });
+
+        await booking.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Payment added successfully',
+            data: booking,
+            newBalance: booking.remainingAmount
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error adding payment',
+            error: error.message
+        });
+    }
+};
+
+// Amend Stay
+exports.amendStay = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        const { newArrivalDate, newDepartureDate, reason, rateChange, newRate } = req.body;
+
+        if (!reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Reason for amendment is required'
+            });
+        }
+
+        // Calculate new nights
+        const arrival = new Date(newArrivalDate);
+        const departure = new Date(newDepartureDate);
+        const nights = Math.max(1, Math.ceil((departure - arrival) / (1000 * 60 * 60 * 24)));
+
+        // Store old values
+        const oldCheckIn = booking.checkInDate;
+        const oldCheckOut = booking.checkOutDate;
+        const oldTotal = booking.totalAmount;
+
+        // Update booking
+        booking.checkInDate = newArrivalDate;
+        booking.checkOutDate = newDepartureDate;
+        booking.numberOfNights = nights;
+
+        if (rateChange && newRate) {
+            booking.pricePerNight = newRate;
+        }
+
+        // Recalculate total
+        booking.totalAmount = nights * booking.pricePerNight;
+        booking.remainingAmount = Math.max(0, booking.totalAmount - (booking.advancePaid || 0));
+        booking.updatedAt = Date.now();
+
+        // Add audit trail
+        if (!booking.auditTrail) booking.auditTrail = [];
+        booking.auditTrail.push({
+            action: 'AMEND_STAY',
+            timestamp: new Date(),
+            user: 'admin',
+            details: reason,
+            changes: {
+                oldCheckIn,
+                newCheckIn: newArrivalDate,
+                oldCheckOut,
+                newCheckOut: newDepartureDate,
+                oldTotal,
+                newTotal: booking.totalAmount
+            }
+        });
+
+        await booking.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Stay amended successfully',
+            data: booking
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error amending stay',
+            error: error.message
+        });
+    }
+};
+
+// Room Move
+exports.roomMove = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        const { newRoom, reason } = req.body;
+
+        if (!newRoom || !reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'New room and reason are required'
+            });
+        }
+
+        const Room = require('../models/roomModel');
+
+        // Check if new room is available
+        const targetRoom = await Room.findOne({ roomNumber: newRoom });
+        if (!targetRoom || targetRoom.status !== 'Available') {
+            return res.status(400).json({
+                success: false,
+                message: 'Target room is not available'
+            });
+        }
+
+        const oldRoom = booking.roomNumber;
+
+        // Update old room to Available
+        const oldRoomDoc = await Room.findOne({ roomNumber: oldRoom });
+        if (oldRoomDoc) {
+            oldRoomDoc.status = 'Available';
+            await oldRoomDoc.save();
+        }
+
+        // Update new room to Occupied
+        targetRoom.status = 'Occupied';
+        await targetRoom.save();
+
+        // Update booking
+        booking.roomNumber = newRoom;
+        booking.updatedAt = Date.now();
+
+        // Add audit trail
+        if (!booking.auditTrail) booking.auditTrail = [];
+        booking.auditTrail.push({
+            action: 'ROOM_MOVE',
+            timestamp: new Date(),
+            user: 'admin',
+            from: oldRoom,
+            to: newRoom,
+            reason: reason
+        });
+
+        await booking.save();
+
+        res.status(200).json({
+            success: true,
+            message: `Guest moved from Room ${oldRoom} to Room ${newRoom}`,
+            data: booking
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error moving room',
+            error: error.message
+        });
+    }
+};
+
+// Exchange Rooms
+exports.exchangeRooms = async (req, res) => {
+    try {
+        const booking1 = await Booking.findById(req.params.id);
+        if (!booking1) {
+            return res.status(404).json({
+                success: false,
+                message: 'First booking not found'
+            });
+        }
+
+        const { targetReservationId, reason } = req.body;
+
+        if (!targetReservationId || !reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Target reservation and reason are required'
+            });
+        }
+
+        const booking2 = await Booking.findById(targetReservationId);
+        if (!booking2) {
+            return res.status(404).json({
+                success: false,
+                message: 'Target booking not found'
+            });
+        }
+
+        // Swap room numbers
+        const room1 = booking1.roomNumber;
+        const room2 = booking2.roomNumber;
+
+        booking1.roomNumber = room2;
+        booking2.roomNumber = room1;
+
+        booking1.updatedAt = Date.now();
+        booking2.updatedAt = Date.now();
+
+        // Add audit trails
+        if (!booking1.auditTrail) booking1.auditTrail = [];
+        if (!booking2.auditTrail) booking2.auditTrail = [];
+
+        const auditEntry = {
+            action: 'ROOM_EXCHANGE',
+            timestamp: new Date(),
+            user: 'admin',
+            details: `Rooms exchanged with ${booking2.guestName}`,
+            reason: reason
+        };
+
+        booking1.auditTrail.push({ ...auditEntry, from: room1, to: room2 });
+        booking2.auditTrail.push({ ...auditEntry, from: room2, to: room1 });
+
+        await booking1.save();
+        await booking2.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Rooms exchanged successfully',
+            data: { booking1, booking2 }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error exchanging rooms',
+            error: error.message
+        });
+    }
+};
+
+// Mark No-Show
+exports.markNoShow = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        const { reason, charges, refundAmount } = req.body;
+
+        if (!reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Reason for no-show is required'
+            });
+        }
+
+        // Update booking status
+        booking.status = 'Cancelled'; // Using Cancelled for no-show
+        booking.noShowReason = reason;
+        booking.noShowCharges = charges || 0;
+        booking.refundAmount = refundAmount || 0;
+        booking.updatedAt = Date.now();
+
+        // Add audit trail
+        if (!booking.auditTrail) booking.auditTrail = [];
+        booking.auditTrail.push({
+            action: 'NO_SHOW',
+            timestamp: new Date(),
+            user: 'admin',
+            reason: reason
+        });
+
+        await booking.save();
+
+        // Update room status to Available
+        const Room = require('../models/roomModel');
+        const room = await Room.findOne({ roomNumber: booking.roomNumber });
+        if (room) {
+            room.status = 'Available';
+            await room.save();
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Booking marked as no-show',
+            data: booking
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error marking no-show',
+            error: error.message
+        });
+    }
+};
+
+// Void Reservation
+exports.voidReservation = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        const { reason, adminPassword } = req.body;
+
+        if (!reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Reason for void is required'
+            });
+        }
+
+        // Simple password check (in production, use proper authentication)
+        if (adminPassword !== 'admin123') {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid admin password'
+            });
+        }
+
+        // Mark as voided
+        booking.status = 'Cancelled'; // Using Cancelled status
+        booking.isVoided = true;
+        booking.voidReason = reason;
+        booking.voidedAt = new Date();
+        booking.updatedAt = Date.now();
+
+        // Add audit trail
+        if (!booking.auditTrail) booking.auditTrail = [];
+        booking.auditTrail.push({
+            action: 'VOID',
+            timestamp: new Date(),
+            user: 'admin',
+            reason: reason
+        });
+
+        await booking.save();
+
+        // Update room status to Available
+        const Room = require('../models/roomModel');
+        const room = await Room.findOne({ roomNumber: booking.roomNumber });
+        if (room) {
+            room.status = 'Available';
+            await room.save();
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Reservation voided successfully',
+            data: booking
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error voiding reservation',
+            error: error.message
+        });
+    }
+};
+
+// Cancel Reservation
+exports.cancelReservation = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        const { reason, cancellationCharges, refundAmount, refundMode } = req.body;
+
+        if (!reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cancellation reason is required'
+            });
+        }
+
+        // Update booking
+        booking.status = 'Cancelled';
+        booking.cancellationReason = reason;
+        booking.cancellationCharges = cancellationCharges || 0;
+        booking.refundAmount = refundAmount || 0;
+        booking.refundMode = refundMode;
+        booking.cancelledAt = new Date();
+        booking.updatedAt = Date.now();
+
+        // Add audit trail
+        if (!booking.auditTrail) booking.auditTrail = [];
+        booking.auditTrail.push({
+            action: 'CANCEL',
+            timestamp: new Date(),
+            user: 'admin',
+            reason: reason,
+            refundAmount: refundAmount
+        });
+
+        // Add refund transaction if applicable
+        if (refundAmount && refundAmount > 0) {
+            booking.transactions.push({
+                type: 'refund',
+                day: new Date().toLocaleDateString('en-GB'),
+                particulars: 'Cancellation Refund',
+                description: `Refund via ${refundMode} - ${reason}`,
+                amount: Math.abs(refundAmount),
+                user: 'admin'
+            });
+        }
+
+        await booking.save();
+
+        // Update room status to Available
+        const Room = require('../models/roomModel');
+        const room = await Room.findOne({ roomNumber: booking.roomNumber });
+        if (room) {
+            room.status = 'Available';
+            await room.save();
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Reservation cancelled successfully',
+            data: booking
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error cancelling reservation',
+            error: error.message
+        });
+    }
+};

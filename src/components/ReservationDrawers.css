@@ -1,0 +1,497 @@
+/* ================================
+   HOTEL PMS DRAWER SYSTEM
+   Red & White Theme - Premium
+   ================================ */
+
+/* Drawer Overlay - Dimmed Background */
+.drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Drawer Panel - Slides from Right */
+.drawer-panel {
+  background: white;
+  width: 450px;
+  height: 100vh;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s ease;
+  overflow: hidden;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Match Card Height */
+.drawer-panel.match-card-height {
+  height: auto;
+  max-height: 85vh;
+  min-height: 600px;
+  margin: auto 0;
+}
+
+/* Drawer Header */
+.drawer-header {
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  color: white;
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
+}
+
+.drawer-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawer-close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.drawer-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+/* Drawer Content */
+.drawer-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.drawer-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.drawer-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.drawer-content::-webkit-scrollbar-thumb {
+  background: #dc2626;
+  border-radius: 3px;
+}
+
+.drawer-content::-webkit-scrollbar-thumb:hover {
+  background: #b91c1c;
+}
+
+/* Form Fields */
+.drawer-form-group {
+  margin-bottom: 20px;
+}
+
+.drawer-form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.drawer-form-label.required::after {
+  content: " *";
+  color: #dc2626;
+}
+
+.drawer-form-input,
+.drawer-form-select,
+.drawer-form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.drawer-form-input:focus,
+.drawer-form-select:focus,
+.drawer-form-textarea:focus {
+  outline: none;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.drawer-form-input:disabled,
+.drawer-form-select:disabled {
+  background: #f9fafb;
+  cursor: not-allowed;
+}
+
+.drawer-form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Form Row - 2 Columns */
+.drawer-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Checkbox */
+.drawer-checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.drawer-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.drawer-checkbox-label {
+  font-size: 14px;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+/* Info Box */
+.drawer-info-box {
+  background: #fef2f2;
+  border-left: 4px solid #dc2626;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.drawer-info-box.success {
+  background: #f0fdf4;
+  border-left-color: #16a34a;
+}
+
+.drawer-info-box.warning {
+  background: #fffbeb;
+  border-left-color: #eab308;
+}
+
+.drawer-info-text {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Drawer Footer */
+.drawer-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  background: white;
+}
+
+/* Buttons */
+.drawer-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-btn-primary {
+  background: #dc2626;
+  color: white;
+}
+
+.drawer-btn-primary:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.drawer-btn-primary:active {
+  transform: translateY(0);
+}
+
+.drawer-btn-secondary {
+  background: white;
+  color: #dc2626;
+  border: 2px solid #dc2626;
+}
+
+.drawer-btn-secondary:hover {
+  background: #fef2f2;
+}
+
+.drawer-btn-success {
+  background: #16a34a;
+  color: white;
+}
+
+.drawer-btn-success:hover {
+  background: #15803d;
+}
+
+.drawer-btn-warning {
+  background: #eab308;
+  color: #451a03;
+}
+
+.drawer-btn-warning:hover {
+  background: #ca8a04;
+}
+
+.drawer-btn-danger {
+  background: #dc2626;
+  color: white;
+}
+
+.drawer-btn-danger:hover {
+  background: #991b1b;
+}
+
+.drawer-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Summary Section */
+.drawer-summary {
+  background: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.drawer-summary-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 12px;
+}
+
+.drawer-summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.drawer-summary-label {
+  color: #6b7280;
+}
+
+.drawer-summary-value {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.drawer-summary-value.highlight {
+  color: #dc2626;
+  font-size: 16px;
+}
+
+/* Table */
+.drawer-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+
+.drawer-table th {
+  background: #f9fafb;
+  padding: 10px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.drawer-table td {
+  padding: 10px;
+  font-size: 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.drawer-table tr:hover {
+  background: #f9fafb;
+}
+
+/* Badge */
+.drawer-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.drawer-badge.reserved {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.drawer-badge.in-house {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.drawer-badge.checked-out {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.drawer-badge.available {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.drawer-badge.occupied {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Time Input Group */
+.drawer-time-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.drawer-time-group input {
+  flex: 1;
+}
+
+/* Visitor List */
+.visitor-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 16px;
+}
+
+.visitor-item {
+  background: white;
+  border: 1px solid #e5e7eb;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.visitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.visitor-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.visitor-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.visitor-status.active {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.visitor-status.past {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.visitor-details {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+/* Radio Group */
+.drawer-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drawer-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.drawer-radio-option input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.drawer-radio-label {
+  font-size: 14px;
+  color: #1f2937;
+  cursor: pointer;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .drawer-panel {
+    width: 100%;
+  }
+
+  .drawer-form-row {
+    grid-template-columns: 1fr;
+  }
+}
