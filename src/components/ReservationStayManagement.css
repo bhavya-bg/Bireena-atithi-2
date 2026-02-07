@@ -19,9 +19,16 @@
     gap: 1.5rem;
 }
 
+.header-title {
+    cursor: pointer;
+}
+
 .header-title h2 {
     margin: 0 0 0.25rem 0;
     letter-spacing: -0.02em;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #1a1a1a;
 }
 
 .header-title p {
@@ -46,12 +53,79 @@
     font-weight: 700;
     border-radius: 0.5rem;
     transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
 }
 
 .header-actions .btn-primary {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    background: #dc2626;
+    color: white;
+}
+
+/* Header Navigation Buttons */
+.header-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1.25rem;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.header-nav-btn:hover {
+    border-color: #dc2626;
+    color: #dc2626;
+    background: #fef2f2;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+}
+
+.header-nav-btn-active {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+}
+
+.header-nav-btn-active:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+.header-nav-btn .nav-icon {
+    font-size: 1.1rem;
+}
+
+.header-nav-btn .nav-text {
+    white-space: nowrap;
+}
+
+/* New Reservation Button */
+.new-reservation-btn {
+    background: #dc2626 !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.75rem 1.5rem !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2) !important;
+}
+
+.new-reservation-btn:hover {
+    background: #b91c1c !important;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+    transform: translateY(-2px) !important;
 }
 
 /* Tabs */

@@ -49,6 +49,7 @@
     right: 0;
     height: 2px;
     background: #dc2626;
+    background: #dc2626;
     transform: scaleX(0);
     transition: transform 0.2s ease;
 }
